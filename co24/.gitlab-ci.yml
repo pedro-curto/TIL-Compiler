@@ -1,0 +1,47 @@
+image: opensuse/tumbleweed
+
+stages:
+  - test
+
+before_script:
+    - export LANG=en_US.UTF-8
+    - zypper --non-interactive ar --no-gpgcheck https://download.opensuse.org/repositories/home:/d4vid:/co24/openSUSE_Tumbleweed/ CO24
+    - zypper refresh
+    - zypper --non-interactive install git bzip2 openssh-clients util-linux python3-base
+    - zypper --non-interactive install zsh diffutils findutils grep bc sed gawk make timezone
+    - zypper --non-interactive install gcc gcc-c++ gcc13 gcc13-c++ flex yasm
+    - zypper --non-interactive install --repo CO24 bison librts5-devel libcdk19-devel
+    - ln -sf /usr/share/zoneinfo/Europe/Lisbon /etc/localtime
+    - eval $(ssh-agent -s)
+    - chmod 400 "$SSH_PRIVATE_KEY"
+    - ssh-add "$SSH_PRIVATE_KEY"  
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - cp "${SSH_PRIVATE_KEY}" ~/.ssh/id_ed25519
+    - cp "${SSH_PUBLIC_KEY}"  ~/.ssh/id_ed25519.pub
+    - chmod 400 ~/.ssh/id_ed25519
+    - ssh-keyscan -t ed25519 gitlab.rnl.tecnico.ulisboa.pt >> ~/.ssh/known_hosts
+    - git remote set-url origin git@gitlab.rnl.tecnico.ulisboa.pt:leic-a-co24/eval/co24.git
+    - git config --global user.email "david.matos@tecnico.ulisboa.pt"
+    - git config --global user.name "David Martins de Matos"
+    - git checkout master
+
+test_all_projects:
+  stage: test
+  script:
+    - ./run.sh
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "api"'
+      when: never
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: manual
+      allow_failure: true
+#  artifacts:
+#    paths:
+#      - GLOBAL-REPORT.md
+#      - logs/*.res.html
+#      - logs/*.log.html
+#    expire_in: never
+
